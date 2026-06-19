@@ -1,0 +1,57 @@
+# STM32CubeIDE Build Folders
+Debug/
+Release/
+
+# Generated object files
+*.o
+*.d
+*.su
+*.elf
+*.hex
+*.bin
+*.map
+*.list
+
+# Eclipse / STM32CubeIDE metadata
+.metadata/
+.settings/
+.externalToolBuilders/
+
+# Temporary files
+*.tmp
+*.log
+
+# Operating System files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# VS Code (optional)
+.vscode/
+
+# Python (TinyML)
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# TensorFlow training artifacts
+*.h5
+*.keras
+
+# ESP-IDF Build Files
+build/
+sdkconfig.old
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+
+# Backup files
+*.bak
+*.orig
