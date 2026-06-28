@@ -71,7 +71,7 @@ const osThreadAttr_t UARTTask_attributes = {
   .priority = (osPriority_t) osPriorityBelowNormal,
 };
 /* USER CODE BEGIN PV */
-
+QueueHandle_t SensorQueue;
 
 /* USER CODE END PV */
 
@@ -200,6 +200,11 @@ int main(void)
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
+  SensorQueue = xQueueCreate(5, sizeof(SensorData_t));
+  if (SensorQueue == NULL)
+  {
+      Error_Handler();
+  }
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -491,13 +496,24 @@ void StartDefaultTask(void *argument)
 /* USER CODE END Header_StartSensorTask */
 void StartSensorTask(void *argument)
 {
-  /* USER CODE BEGIN StartSensorTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END StartSensorTask */
+    SensorData_t sensor;
+
+    if (SensorManager_Init() != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    for (;;)
+    {
+        SensorManager_Read(&sensor);
+
+        xQueueSend(
+            SensorQueue,
+            &sensor,
+            portMAX_DELAY);
+
+        osDelay(1000);
+    }
 }
 
 /* USER CODE BEGIN Header_StartTinyMLTask */
@@ -509,13 +525,30 @@ void StartSensorTask(void *argument)
 /* USER CODE END Header_StartTinyMLTask */
 void StartTinyMLTask(void *argument)
 {
-  /* USER CODE BEGIN StartTinyMLTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END StartTinyMLTask */
+    SensorData_t sensor;
+
+    char msg[128];
+
+    for (;;)
+    {
+        if (xQueueReceive(
+                SensorQueue,
+                &sensor,
+                portMAX_DELAY) == pdPASS)
+        {
+            sprintf(msg,
+                    "Temp=%.2f C  Pressure=%.2f hPa  Gas=%u  Vib=%u\r\n",
+                    sensor.temperature,
+                    sensor.pressure,
+                    sensor.gas,
+                    sensor.vibration);
+
+            HAL_UART_Transmit(&huart2,
+                              (uint8_t *)msg,
+                              strlen(msg),
+                              HAL_MAX_DELAY);
+        }
+    }
 }
 
 /* USER CODE BEGIN Header_StartAlertTask */
