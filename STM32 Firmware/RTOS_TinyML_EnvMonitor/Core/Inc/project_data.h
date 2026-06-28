@@ -23,7 +23,7 @@ typedef struct
 
 typedef struct
 {
-	SensorData_t sensor;
+	char reason[32];
 	uint8_t anomaly;
 }InferenceData_t;
 

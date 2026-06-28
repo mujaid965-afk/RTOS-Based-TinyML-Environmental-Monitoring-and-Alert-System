@@ -72,6 +72,7 @@ const osThreadAttr_t UARTTask_attributes = {
 };
 /* USER CODE BEGIN PV */
 QueueHandle_t SensorQueue;
+QueueHandle_t InferenceQueue;
 
 /* USER CODE END PV */
 
@@ -202,6 +203,13 @@ int main(void)
   /* USER CODE BEGIN RTOS_QUEUES */
   SensorQueue = xQueueCreate(5, sizeof(SensorData_t));
   if (SensorQueue == NULL)
+  {
+      Error_Handler();
+  }
+
+  InferenceQueue = xQueueCreate(5, sizeof(InferenceData_t));
+
+  if (InferenceQueue == NULL)
   {
       Error_Handler();
   }
@@ -526,8 +534,7 @@ void StartSensorTask(void *argument)
 void StartTinyMLTask(void *argument)
 {
     SensorData_t sensor;
-
-    char msg[128];
+    InferenceData_t inference;
 
     for (;;)
     {
@@ -536,17 +543,30 @@ void StartTinyMLTask(void *argument)
                 &sensor,
                 portMAX_DELAY) == pdPASS)
         {
-            sprintf(msg,
-                    "Temp=%.2f C  Pressure=%.2f hPa  Gas=%u  Vib=%u\r\n",
-                    sensor.temperature,
-                    sensor.pressure,
-                    sensor.gas,
-                    sensor.vibration);
+            if(sensor.gas > 1000)
+            {
+            	inference.anomaly = 1;
+            	strcpy(inference.reason, "HIGH GAS");
+            }
+            else if(sensor.temperature > 35.0f)
+			{
+            	inference.anomaly = 1;
+            	strcpy(inference.reason, "HIGH TEMP");
+			}
+            else if(sensor.vibration == 1)
+			{
+            	inference.anomaly = 1;
+            	strcpy(inference.reason, "VIBRATION");
+			}
+            else
+            {
+            	inference.anomaly = 0;
+            	strcpy(inference.reason, "NORMAL");
+            }
 
-            HAL_UART_Transmit(&huart2,
-                              (uint8_t *)msg,
-                              strlen(msg),
-                              HAL_MAX_DELAY);
+            xQueueSend(InferenceQueue,
+                                  &inference,
+                                  portMAX_DELAY);
         }
     }
 }
@@ -574,10 +594,24 @@ void StartAlertTask(void *argument)
 void StartUARTTask(void *argument)
 {
   /* USER CODE BEGIN StartUARTTask */
+	InferenceData_t inference;
+	char msg[64];
   /* Infinite loop */
   for(;;)
   {
-    osDelay(1);
+	  if (xQueueReceive(InferenceQueue,
+	                            &inference,
+	                            portMAX_DELAY) == pdPASS)
+	  {
+		  sprintf(msg,
+		           "Anomaly=%d  Reason=%s\r\n",
+		            inference.anomaly,
+		            inference.reason);
+		  HAL_UART_Transmit(&huart2,
+		                               (uint8_t *)msg,
+		                               strlen(msg),
+		                               HAL_MAX_DELAY);
+	  }
   }
   /* USER CODE END StartUARTTask */
 }
