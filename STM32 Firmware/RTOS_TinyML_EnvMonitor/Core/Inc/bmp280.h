@@ -12,20 +12,32 @@
 
 #define BMP280_ADDR  (0x76 << 1) //I2C Address (7-bit address for HAL)
 
-//Registers
+/* Identification Registers */
 #define BMP280_CHIP_ID_REG  0xD0
 #define BMP280_RESET_REG	0xE0
-#define	BMP280_CTRL_HUM		0xF2
-#define	BMP280_STATUS		0xF3
+
+/* Calibration Registers */
+#define BMP280_CALIB_START  0x88
+
+/* Configuration Registers */
 #define	BMP280_CTRL_MEAS	0xF4
 #define BMP280_CONFIG		0xF5
+#define	BMP280_STATUS		0xF3
 
-#define BMP280_CALIB_START 0x88
-#define BMP280_CALIB_LENGTH 24
+/* Data Registers */
+#define BMP280_PRESS_MSB    0xF7
+#define BMP280_PRESS_LSB    0xF8
+#define BMP280_PRESS_XLSB   0xF9
 
 #define BMP280_TEMP_MSB		0xFA
 #define BMP280_TEMP_LSB		0xFB
 #define BMP280_TEMP_XLSB 	0xFC
+
+#define	BMP280_CTRL_HUM		0xF2
+
+#define BMP280_CALIB_LENGTH 24
+
+
 
 uint8_t BMP280_ReadRegister(uint8_t reg);
 HAL_StatusTypeDef BMP280_WriteRegister(uint8_t reg, uint8_t value);
@@ -54,7 +66,8 @@ HAL_StatusTypeDef BMP280_ReadCalibration(BMP280_CalibData_t *calib);
 
 HAL_StatusTypeDef BMP280_Init(void);
 
-uint32_t BMP280_ReadRawTemperature(void);
+
+float BMP280_ReadTemperature(void);
 
 
 

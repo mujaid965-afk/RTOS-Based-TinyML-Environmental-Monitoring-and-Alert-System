@@ -220,13 +220,13 @@ int main(void)
                         HAL_MAX_DELAY);
   }
 
-  uint32_t rawTemp = BMP280_ReadRawTemperature();
+
+  float temperature = BMP280_ReadTemperature();
 
   char msg[64];
-
   sprintf(msg,
-          "Raw Temperature = %lu\r\n",
-          (unsigned long)rawTemp);
+          "Temperature = %.2f C\r\n",
+          temperature);
 
   HAL_UART_Transmit(&huart2,
                     (uint8_t *)msg,

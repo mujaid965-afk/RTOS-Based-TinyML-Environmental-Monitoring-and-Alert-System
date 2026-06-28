@@ -8,6 +8,9 @@
 #include "bmp280.h"
 
 extern I2C_HandleTypeDef hi2c1;
+static BMP280_CalibData_t bmp280_calib;
+static int32_t t_fine;
+static uint32_t BMP280_ReadRawTemperature(void);
 
 uint8_t BMP280_ReadRegister(uint8_t reg)
 {
@@ -79,20 +82,27 @@ HAL_StatusTypeDef BMP280_Init(void)
 {
     HAL_StatusTypeDef status;
 
-    status = BMP280_WriteRegister(BMP280_CTRL_MEAS, 0x27);
+    /* Read factory calibration */
+    status = BMP280_ReadCalibration(&bmp280_calib);
+    if(status != HAL_OK)
+    {
+    	return status;
+    }
 
+    /* Configure measurement settings */
+    status = BMP280_WriteRegister(BMP280_CTRL_MEAS, 0x27);
     if(status != HAL_OK)
         return status;
 
-    status = BMP280_WriteRegister(BMP280_CONFIG, 0xA0);
 
+    status = BMP280_WriteRegister(BMP280_CONFIG, 0xA0);
     if(status != HAL_OK)
         return status;
 
     return HAL_OK;
 }
 
-uint32_t BMP280_ReadRawTemperature(void)
+static uint32_t BMP280_ReadRawTemperature(void)
 {
     uint8_t buffer[3];
 
@@ -114,5 +124,27 @@ uint32_t BMP280_ReadRawTemperature(void)
     return adc_T;
 }
 
+
+
+float BMP280_ReadTemperature(void)
+{
+    int32_t adc_T = BMP280_ReadRawTemperature();
+
+    int32_t var1, var2;
+    int32_t T;
+
+    var1 = ((((adc_T >> 3) - ((int32_t)bmp280_calib.dig_T1 << 1))) *
+            ((int32_t)bmp280_calib.dig_T2)) >> 11;
+
+    var2 = (((((adc_T >> 4) - ((int32_t)bmp280_calib.dig_T1)) *
+              ((adc_T >> 4) - ((int32_t)bmp280_calib.dig_T1))) >> 12) *
+            ((int32_t)bmp280_calib.dig_T3)) >> 14;
+
+    t_fine = var1 + var2;
+
+    T = (t_fine * 5 + 128) >> 8;
+
+    return T / 100.0f;
+}
 
 
