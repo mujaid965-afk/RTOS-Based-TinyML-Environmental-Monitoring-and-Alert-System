@@ -10,6 +10,7 @@
 
 #include "project_data.h"
 #include "sensor_manager.h"
+#include "tinyml_engine.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -169,23 +170,6 @@ int main(void)
   MX_USART1_UART_Init();
   SensorManager_Init();
   /* USER CODE BEGIN 2 */
-
-  SensorData_t sensor;
-  char msg[128];
-
-  SensorManager_Read(&sensor);
-
-  sprintf(msg,
-          "Temp=%.2f  Pressure=%.2f  Gas=%u  Vib=%u\r\n",
-          sensor.temperature,
-          sensor.pressure,
-          sensor.gas,
-          sensor.vibration);
-
-  HAL_UART_Transmit(&huart2,
-                    (uint8_t *)msg,
-                    strlen(msg),
-                    HAL_MAX_DELAY);
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -520,7 +504,7 @@ void StartSensorTask(void *argument)
             &sensor,
             portMAX_DELAY);
 
-        osDelay(1000);
+        osDelay(3000);
     }
 }
 
@@ -538,35 +522,15 @@ void StartTinyMLTask(void *argument)
 
     for (;;)
     {
-        if (xQueueReceive(
-                SensorQueue,
-                &sensor,
-                portMAX_DELAY) == pdPASS)
+        if (xQueueReceive(SensorQueue,
+                          &sensor,
+                          portMAX_DELAY) == pdPASS)
         {
-            if(sensor.gas > 1000)
-            {
-            	inference.anomaly = 1;
-            	strcpy(inference.reason, "HIGH GAS");
-            }
-            else if(sensor.temperature > 35.0f)
-			{
-            	inference.anomaly = 1;
-            	strcpy(inference.reason, "HIGH TEMP");
-			}
-            else if(sensor.vibration == 1)
-			{
-            	inference.anomaly = 1;
-            	strcpy(inference.reason, "VIBRATION");
-			}
-            else
-            {
-            	inference.anomaly = 0;
-            	strcpy(inference.reason, "NORMAL");
-            }
+            TinyML_RunInference(&sensor, &inference);
 
             xQueueSend(InferenceQueue,
-                                  &inference,
-                                  portMAX_DELAY);
+                       &inference,
+                       portMAX_DELAY);
         }
     }
 }
@@ -604,7 +568,7 @@ void StartUARTTask(void *argument)
 	                            portMAX_DELAY) == pdPASS)
 	  {
 		  sprintf(msg,
-		           "Anomaly=%d  Reason=%s\r\n",
+		           " Anomaly=%d  Reason=%s\r\n",
 		            inference.anomaly,
 		            inference.reason);
 		  HAL_UART_Transmit(&huart2,
