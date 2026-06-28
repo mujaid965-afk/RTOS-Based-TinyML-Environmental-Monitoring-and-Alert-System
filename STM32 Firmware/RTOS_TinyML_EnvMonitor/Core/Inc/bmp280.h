@@ -44,6 +44,8 @@ HAL_StatusTypeDef BMP280_WriteRegister(uint8_t reg, uint8_t value);
 
 uint8_t BMP280_ReadChipID(void);
 
+float BMP280_ReadPressure(void);
+
 typedef struct
 {
     uint16_t dig_T1;
@@ -68,6 +70,8 @@ HAL_StatusTypeDef BMP280_Init(void);
 
 
 float BMP280_ReadTemperature(void);
+
+uint32_t BMP280_DebugReadRawPressure(void);
 
 
 

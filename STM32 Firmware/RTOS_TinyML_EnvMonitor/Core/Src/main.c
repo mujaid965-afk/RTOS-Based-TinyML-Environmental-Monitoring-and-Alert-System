@@ -221,12 +221,17 @@ int main(void)
   }
 
 
-  float temperature = BMP280_ReadTemperature();
 
-  char msg[64];
+
+  float temperature = BMP280_ReadTemperature();
+  float pressure = BMP280_ReadPressure();
+
+  char msg[80];
+
   sprintf(msg,
-          "Temperature = %.2f C\r\n",
-          temperature);
+          "Temp = %.2f C  Pressure = %.2f hPa\r\n",
+          temperature,
+          pressure);
 
   HAL_UART_Transmit(&huart2,
                     (uint8_t *)msg,

@@ -11,6 +11,7 @@ extern I2C_HandleTypeDef hi2c1;
 static BMP280_CalibData_t bmp280_calib;
 static int32_t t_fine;
 static uint32_t BMP280_ReadRawTemperature(void);
+static uint32_t BMP280_ReadRawPressure(void);
 
 uint8_t BMP280_ReadRegister(uint8_t reg)
 {
@@ -147,4 +148,60 @@ float BMP280_ReadTemperature(void)
     return T / 100.0f;
 }
 
+static uint32_t BMP280_ReadRawPressure(void)
+{
+	uint8_t buffer[3];
+
+	HAL_I2C_Mem_Read(&hi2c1,
+						BMP280_ADDR,
+						BMP280_PRESS_MSB,
+						I2C_MEMADD_SIZE_8BIT,
+						buffer,
+						3,
+						HAL_MAX_DELAY);
+
+	return((uint32_t)buffer[0] << 12) |
+		   ((uint32_t)buffer[1] << 4) |
+		   ((uint32_t)buffer[2] >> 4);
+}
+
+uint32_t BMP280_DebugReadRawPressure(void)
+{
+    return BMP280_ReadRawPressure();
+}
+
+float BMP280_ReadPressure(void)
+{
+    int64_t var1, var2, p;
+    int32_t adc_P = BMP280_ReadRawPressure();
+
+    var1 = ((int64_t)t_fine) - 128000;
+    var2 = var1 * var1 * (int64_t)bmp280_calib.dig_P6;
+    var2 = var2 + ((var1 * (int64_t)bmp280_calib.dig_P5) << 17);
+    var2 = var2 + (((int64_t)bmp280_calib.dig_P4) << 35);
+
+    var1 = ((var1 * var1 * (int64_t)bmp280_calib.dig_P3) >> 8) +
+           ((var1 * (int64_t)bmp280_calib.dig_P2) << 12);
+
+    var1 = (((((int64_t)1) << 47) + var1) *
+            ((int64_t)bmp280_calib.dig_P1)) >> 33;
+
+    if (var1 == 0)
+    {
+        return 0;
+    }
+
+    p = 1048576 - adc_P;
+    p = (((p << 31) - var2) * 3125) / var1;
+
+    var1 = (((int64_t)bmp280_calib.dig_P9) *
+           (p >> 13) * (p >> 13)) >> 25;
+
+    var2 = (((int64_t)bmp280_calib.dig_P8) * p) >> 19;
+
+    p = ((p + var1 + var2) >> 8) +
+        (((int64_t)bmp280_calib.dig_P7) << 4);
+
+    return (float)p / 25600.0f;
+}
 
