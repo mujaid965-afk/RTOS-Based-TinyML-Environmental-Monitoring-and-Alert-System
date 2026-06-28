@@ -18,23 +18,16 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-
-
-
-#include "main.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "main.h"
 #include "queue.h"
-
-
-#include "project_data.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 extern UART_HandleTypeDef huart2;
 
-QueueHandle_t SensorQueue;
-QueueHandle_t InferenceQueue;
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/

@@ -8,6 +8,7 @@
 #ifndef INC_SENSOR_MANAGER_H_
 #define INC_SENSOR_MANAGER_H_
 
+#include "stm32f4xx_hal.h"
 #include "project_data.h"
 
 HAL_StatusTypeDef SensorManager_Init(void);

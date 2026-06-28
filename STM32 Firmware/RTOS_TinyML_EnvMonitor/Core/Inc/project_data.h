@@ -9,6 +9,8 @@
 #define INC_PROJECT_DATA_H_
 
 #include <stdint.h>
+#include "FreeRTOS.h"
+#include "queue.h"
 
 typedef struct
 {

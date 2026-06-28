@@ -1,16 +1,15 @@
 /* USER CODE BEGIN Header */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include "main.h"
 #include "cmsis_os.h"
-#include "project_data.h"
-#include "bmp280.h"
-
 #include "queue.h"
 
+#include "project_data.h"
+#include "sensor_manager.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -90,8 +89,7 @@ void StartAlertTask(void *argument);
 void StartUARTTask(void *argument);
 
 /* USER CODE BEGIN PFP */
-extern QueueHandle_t SensorQueue;
-extern QueueHandle_t InferenceQueue;
+
 
 const osThreadAttr_t defaultTask_attributes;
 const osThreadAttr_t SensorTask_attributes;
@@ -134,6 +132,8 @@ void I2C_Scan(void)
                       15,
                       HAL_MAX_DELAY);
 }
+
+
 /* USER CODE END 0 */
 
 /**
@@ -162,90 +162,33 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-  HAL_Delay(2000);
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-
   MX_USART2_UART_Init();
   MX_I2C1_Init();
-
-  HAL_Delay(100);
-
-  I2C_Scan();
-
-
-  BMP280_CalibData_t calib;
-
-  if(BMP280_ReadCalibration(&calib) == HAL_OK)
-  {
-	  char msg[100];
-
-	  sprintf(msg,
-	              "T1=%u T2=%d T3=%d\r\n",
-	              calib.dig_T1,
-	              calib.dig_T2,
-	              calib.dig_T3);
-
-	  HAL_UART_Transmit(&huart2,
-	                        (uint8_t *)msg,
-	                        strlen(msg),
-	                        HAL_MAX_DELAY);
-  }
-  else
-  {
-	  HAL_UART_Transmit(&huart2,
-	                        (uint8_t *)"Calibration Read Failed\r\n",
-	                        25,
-	                        HAL_MAX_DELAY);
-  }
-
-
-
   MX_ADC1_Init();
   MX_USART1_UART_Init();
+  SensorManager_Init();
+  /* USER CODE BEGIN 2 */
 
-  if(BMP280_Init() == HAL_OK)
-  {
-      HAL_UART_Transmit(&huart2,
-                        (uint8_t *)"BMP280 Initialized\r\n",
-                        20,
-                        HAL_MAX_DELAY);
-  }
-  else
-  {
-      HAL_UART_Transmit(&huart2,
-                        (uint8_t *)"BMP280 Init Failed\r\n",
-                        20,
-                        HAL_MAX_DELAY);
-  }
+  SensorData_t sensor;
+  char msg[128];
 
-
-
-
-  float temperature = BMP280_ReadTemperature();
-  float pressure = BMP280_ReadPressure();
-
-  char msg[80];
+  SensorManager_Read(&sensor);
 
   sprintf(msg,
-          "Temp = %.2f C  Pressure = %.2f hPa\r\n",
-          temperature,
-          pressure);
+          "Temp=%.2f  Pressure=%.2f  Gas=%u  Vib=%u\r\n",
+          sensor.temperature,
+          sensor.pressure,
+          sensor.gas,
+          sensor.vibration);
 
   HAL_UART_Transmit(&huart2,
                     (uint8_t *)msg,
                     strlen(msg),
                     HAL_MAX_DELAY);
-  /* USER CODE BEGIN 2 */
   /* USER CODE END 2 */
-
 
   /* Init scheduler */
   osKernelInitialize();
-
-  SensorQueue = xQueueCreate(5, sizeof(SensorData_t));
-  InferenceQueue = xQueueCreate(5, sizeof(InferenceData_t));
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* USER CODE END RTOS_MUTEX */
@@ -513,6 +456,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : PA8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_8;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
   /* USER CODE BEGIN MX_GPIO_Init_2 */
   /* USER CODE END MX_GPIO_Init_2 */
 }
@@ -524,10 +473,13 @@ static void MX_GPIO_Init(void)
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void *argument)
 {
-    for(;;)
-    {
-        osDelay(1000);
-    }
+  /* USER CODE BEGIN 5 */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END 5 */
 }
 
 /* USER CODE BEGIN Header_StartSensorTask */
@@ -539,13 +491,13 @@ void StartDefaultTask(void *argument)
 /* USER CODE END Header_StartSensorTask */
 void StartSensorTask(void *argument)
 {
-
-    for(;;)
-    {
-
-
-        osDelay(1);
-    }
+  /* USER CODE BEGIN StartSensorTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartSensorTask */
 }
 
 /* USER CODE BEGIN Header_StartTinyMLTask */
@@ -557,24 +509,28 @@ void StartSensorTask(void *argument)
 /* USER CODE END Header_StartTinyMLTask */
 void StartTinyMLTask(void *argument)
 {
-
-
-    for(;;)
-    {
-
-
-        osDelay(1);
-    }
+  /* USER CODE BEGIN StartTinyMLTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartTinyMLTask */
 }
 
 /* USER CODE BEGIN Header_StartAlertTask */
 /* USER CODE END Header_StartAlertTask */
 void StartAlertTask(void *argument)
 {
-    for(;;)
-    {
-    }
+  /* USER CODE BEGIN StartAlertTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartAlertTask */
 }
+
 /* USER CODE BEGIN Header_StartUARTTask */
 /**
 * @brief Function implementing the UARTTask thread.
@@ -584,11 +540,13 @@ void StartAlertTask(void *argument)
 /* USER CODE END Header_StartUARTTask */
 void StartUARTTask(void *argument)
 {
-    for(;;)
-    {
-
-        osDelay(1);
-    }
+  /* USER CODE BEGIN StartUARTTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartUARTTask */
 }
 
 /**
