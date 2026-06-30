@@ -191,8 +191,7 @@ int main(void)
       Error_Handler();
   }
 
-  InferenceQueue = xQueueCreate(5, sizeof(InferenceData_t));
-
+  InferenceQueue = xQueueCreate(5, sizeof(ReportData_t));
   if (InferenceQueue == NULL)
   {
       Error_Handler();
@@ -499,6 +498,8 @@ void StartSensorTask(void *argument)
     {
         SensorManager_Read(&sensor);
 
+
+
         xQueueSend(
             SensorQueue,
             &sensor,
@@ -518,7 +519,7 @@ void StartSensorTask(void *argument)
 void StartTinyMLTask(void *argument)
 {
     SensorData_t sensor;
-    InferenceData_t inference;
+    ReportData_t report;
 
     for (;;)
     {
@@ -526,10 +527,14 @@ void StartTinyMLTask(void *argument)
                           &sensor,
                           portMAX_DELAY) == pdPASS)
         {
-            TinyML_RunInference(&sensor, &inference);
+            report.sensor = sensor;
+
+            TinyML_RunInference(&sensor,
+                                &report.inference);
+
 
             xQueueSend(InferenceQueue,
-                       &inference,
+                       &report,
                        portMAX_DELAY);
         }
     }
@@ -557,27 +562,41 @@ void StartAlertTask(void *argument)
 /* USER CODE END Header_StartUARTTask */
 void StartUARTTask(void *argument)
 {
-  /* USER CODE BEGIN StartUARTTask */
-	InferenceData_t inference;
-	char msg[64];
-  /* Infinite loop */
-  for(;;)
-  {
-	  if (xQueueReceive(InferenceQueue,
-	                            &inference,
-	                            portMAX_DELAY) == pdPASS)
-	  {
-		  sprintf(msg,
-		           " Anomaly=%d  Reason=%s\r\n",
-		            inference.anomaly,
-		            inference.reason);
-		  HAL_UART_Transmit(&huart2,
-		                               (uint8_t *)msg,
-		                               strlen(msg),
-		                               HAL_MAX_DELAY);
-	  }
-  }
-  /* USER CODE END StartUARTTask */
+    ReportData_t report;
+    char msg[128];
+    uint8_t headerPrinted = 0;
+
+    for (;;)
+    {
+        if (xQueueReceive(InferenceQueue,
+                          &report,
+                          portMAX_DELAY) == pdPASS)
+        {
+        	/* Print CSV header only once */
+        	if(!headerPrinted){
+        		strcpy(msg,"Temperature,Pressure,Gas,Vibration,Label\r\n");
+
+        		HAL_UART_Transmit(&huart2, (uint8_t *)msg,
+        		                                  strlen(msg),
+        		                                  HAL_MAX_DELAY);
+
+        		headerPrinted = 1;
+        	}
+        	/* Print one CSV row */
+        	sprintf(msg,
+        	        "%.2f,%.2f,%u,%u,%u\r\n",
+        	        report.sensor.temperature,
+        	        report.sensor.pressure,
+        	        report.sensor.gas,
+        	        report.sensor.vibration,
+        	        report.inference.anomaly);
+
+        	HAL_UART_Transmit(&huart2,
+        	                  (uint8_t *)msg,
+        	                  strlen(msg),
+        	                  HAL_MAX_DELAY);
+        }
+    }
 }
 
 /**

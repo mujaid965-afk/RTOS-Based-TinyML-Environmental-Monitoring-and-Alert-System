@@ -27,6 +27,13 @@ typedef struct
 	uint8_t anomaly;
 }InferenceData_t;
 
+typedef struct
+{
+    SensorData_t sensor;
+    InferenceData_t inference;
+
+} ReportData_t;
+
 
 
 #endif /* INC_PROJECT_DATA_H_ */
