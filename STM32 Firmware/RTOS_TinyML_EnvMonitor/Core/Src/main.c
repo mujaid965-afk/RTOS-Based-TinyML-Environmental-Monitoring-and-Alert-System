@@ -1,16 +1,8 @@
 /* USER CODE BEGIN Header */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
 #include "main.h"
 #include "cmsis_os.h"
-#include "queue.h"
-
-#include "project_data.h"
-#include "sensor_manager.h"
-#include "tinyml_engine.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -168,7 +160,6 @@ int main(void)
   MX_I2C1_Init();
   MX_ADC1_Init();
   MX_USART1_UART_Init();
-  SensorManager_Init();
   /* USER CODE BEGIN 2 */
   /* USER CODE END 2 */
 
@@ -487,26 +478,13 @@ void StartDefaultTask(void *argument)
 /* USER CODE END Header_StartSensorTask */
 void StartSensorTask(void *argument)
 {
-    SensorData_t sensor;
-
-    if (SensorManager_Init() != HAL_OK)
-    {
-        Error_Handler();
-    }
-
-    for (;;)
-    {
-        SensorManager_Read(&sensor);
-
-
-
-        xQueueSend(
-            SensorQueue,
-            &sensor,
-            portMAX_DELAY);
-
-        osDelay(3000);
-    }
+  /* USER CODE BEGIN StartSensorTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartSensorTask */
 }
 
 /* USER CODE BEGIN Header_StartTinyMLTask */
@@ -518,26 +496,13 @@ void StartSensorTask(void *argument)
 /* USER CODE END Header_StartTinyMLTask */
 void StartTinyMLTask(void *argument)
 {
-    SensorData_t sensor;
-    ReportData_t report;
-
-    for (;;)
-    {
-        if (xQueueReceive(SensorQueue,
-                          &sensor,
-                          portMAX_DELAY) == pdPASS)
-        {
-            report.sensor = sensor;
-
-            TinyML_RunInference(&sensor,
-                                &report.inference);
-
-
-            xQueueSend(InferenceQueue,
-                       &report,
-                       portMAX_DELAY);
-        }
-    }
+  /* USER CODE BEGIN StartTinyMLTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartTinyMLTask */
 }
 
 /* USER CODE BEGIN Header_StartAlertTask */
@@ -562,41 +527,13 @@ void StartAlertTask(void *argument)
 /* USER CODE END Header_StartUARTTask */
 void StartUARTTask(void *argument)
 {
-    ReportData_t report;
-    char msg[128];
-    uint8_t headerPrinted = 0;
-
-    for (;;)
-    {
-        if (xQueueReceive(InferenceQueue,
-                          &report,
-                          portMAX_DELAY) == pdPASS)
-        {
-        	/* Print CSV header only once */
-        	if(!headerPrinted){
-        		strcpy(msg,"Temperature,Pressure,Gas,Vibration,Label\r\n");
-
-        		HAL_UART_Transmit(&huart2, (uint8_t *)msg,
-        		                                  strlen(msg),
-        		                                  HAL_MAX_DELAY);
-
-        		headerPrinted = 1;
-        	}
-        	/* Print one CSV row */
-        	sprintf(msg,
-        	        "%.2f,%.2f,%u,%u,%u\r\n",
-        	        report.sensor.temperature,
-        	        report.sensor.pressure,
-        	        report.sensor.gas,
-        	        report.sensor.vibration,
-        	        report.inference.anomaly);
-
-        	HAL_UART_Transmit(&huart2,
-        	                  (uint8_t *)msg,
-        	                  strlen(msg),
-        	                  HAL_MAX_DELAY);
-        }
-    }
+  /* USER CODE BEGIN StartUARTTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartUARTTask */
 }
 
 /**
