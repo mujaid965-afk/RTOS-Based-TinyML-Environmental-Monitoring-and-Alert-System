@@ -1,33 +1,36 @@
-/*
- * tinyml_engine.c
- *
- *  Created on: Jun 28, 2026
- *      Author: Mujaid
- */
+#include "ai_engine.h"
 #include "tinyml_engine.h"
 #include <string.h>
 
 void TinyML_RunInference(const SensorData_t *sensor,
                          InferenceData_t *result)
 {
-	if(sensor->gas > 1000)
-	{
-		result->anomaly = 1;
-		strcpy(result->reason, "HIGH GAS");
-	}
-	else if(sensor->temperature > 35.0f)
-	{
-		result->anomaly = 1;
-		strcpy(result->reason, "HIGH TEMP");
-	}
-	else if(sensor->vibration == 1)
-	{
-		result->anomaly = 1;
-		strcpy(result->reason, "VIBRATION");
-	}
-	else
-	{
-		result->anomaly = 0;
-		strcpy(result->reason, "NORMAL");
-	}
+    AI_Input_t input;
+    AI_Output_t output;
+
+    input.temperature = sensor->temperature;
+    input.pressure    = sensor->pressure;
+    input.gas         = (float)sensor->gas;
+    input.vibration   = (float)sensor->vibration;
+
+    if (AI_RunInference(&input, &output))
+    {
+        result->anomaly = output.anomaly;
+        result->probability = output.probability;
+
+        if (output.anomaly)
+        {
+            strcpy(result->reason, "AI ANOMALY");
+        }
+        else
+        {
+            strcpy(result->reason, "NORMAL");
+        }
+    }
+    else
+    {
+        result->anomaly = 0;
+        result->probability = 0.0f;
+        strcpy(result->reason, "AI ERROR");
+    }
 }

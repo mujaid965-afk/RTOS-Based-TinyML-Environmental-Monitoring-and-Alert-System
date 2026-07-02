@@ -8,22 +8,26 @@
 #ifndef AI_ENGINE_H
 #define AI_ENGINE_H
 
-#include "main.h"
-#include "network.h"
+#include <stdint.h>
+#include <stdbool.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+typedef struct
+{
+    float temperature;
+    float pressure;
+    float gas;
+    float vibration;
+} AI_Input_t;
 
-HAL_StatusTypeDef AI_Init(void);
+typedef struct
+{
+    float probability;
+    bool anomaly;
+} AI_Output_t;
 
-float AI_Run(float temperature,
-             float pressure,
-             float gas,
-             float vibration);
+bool AI_Init(void);
 
-#ifdef __cplusplus
-}
-#endif
+bool AI_RunInference(AI_Input_t *input,
+                     AI_Output_t *output);
 
 #endif

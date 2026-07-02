@@ -4,6 +4,17 @@
 #include "main.h"
 #include "cmsis_os.h"
 
+#include <stdio.h>
+#include <string.h>
+
+#include "queue.h"
+#include "ai_engine.h"
+#include "sensor_manager.h"
+#include "tinyml_engine.h"
+#include "bmp280.h"
+#include "mq2.h"
+#include "sw420.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /* USER CODE END Includes */
@@ -32,7 +43,7 @@ UART_HandleTypeDef huart2;
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .stack_size = 128 * 4,
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for SensorTask */
@@ -60,7 +71,7 @@ const osThreadAttr_t AlertTask_attributes = {
 osThreadId_t UARTTaskHandle;
 const osThreadAttr_t UARTTask_attributes = {
   .name = "UARTTask",
-  .stack_size = 128 * 4,
+  .stack_size = 1024 * 4,
   .priority = (osPriority_t) osPriorityBelowNormal,
 };
 /* USER CODE BEGIN PV */
@@ -161,6 +172,43 @@ int main(void)
   MX_ADC1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+
+  printf("=====================================\r\n");
+  printf("RTOS TinyML Project Started\r\n");
+  printf("USART2 Debug Console Ready\r\n");
+  printf("=====================================\r\n");
+
+  /* Initialize AI Engine */
+  if (!AI_Init())
+  {
+      printf("ERROR: AI Initialization Failed!\r\n");
+      Error_Handler();
+  }
+
+  printf("AI Model Initialized Successfully\r\n");
+
+  AI_Input_t test =
+  {
+      .temperature = 55.0f,
+      .pressure    = 980.0f,
+      .gas         = 3500.0f,
+      .vibration   = 1.0f
+  };
+
+  AI_Output_t result;
+
+  if (AI_RunInference(&test, &result))
+  {
+      printf("\r\n=== AI TEST ===\r\n");
+      printf("Probability : %.8f\r\n", result.probability);
+      printf("Anomaly     : %d\r\n", result.anomaly);
+  }
+  else
+  {
+      printf("AI Test Failed!\r\n");
+  }
+
+
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -460,15 +508,8 @@ static void MX_GPIO_Init(void)
 /* USER CODE END Header_StartDefaultTask */
 void StartDefaultTask(void *argument)
 {
-  /* USER CODE BEGIN 5 */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END 5 */
+    vTaskDelete(NULL);
 }
-
 /* USER CODE BEGIN Header_StartSensorTask */
 /**
 * @brief Function implementing the SensorTask thread.
@@ -478,13 +519,42 @@ void StartDefaultTask(void *argument)
 /* USER CODE END Header_StartSensorTask */
 void StartSensorTask(void *argument)
 {
-  /* USER CODE BEGIN StartSensorTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END StartSensorTask */
+    SensorData_t sensor;
+
+    printf("SensorTask Started\r\n");
+
+    if (SensorManager_Init() != HAL_OK)
+    {
+        printf("Sensor init failed\r\n");
+        Error_Handler();
+    }
+
+    printf("Sensors initialized\r\n");
+
+    for (;;)
+    {
+        printf("Sensor Loop\r\n");
+
+        if (SensorManager_Read(&sensor) == HAL_OK)
+        {
+            printf("Sensor Read OK\r\n");
+
+            if (xQueueSend(SensorQueue, &sensor, pdMS_TO_TICKS(100)) == pdPASS)
+            {
+                printf("Sensor Sent\r\n");
+            }
+            else
+            {
+                printf("Sensor Queue FULL\r\n");
+            }
+        }
+        else
+        {
+            printf("Sensor Read Failed\r\n");
+        }
+
+        osDelay(1000);
+    }
 }
 
 /* USER CODE BEGIN Header_StartTinyMLTask */
@@ -496,13 +566,33 @@ void StartSensorTask(void *argument)
 /* USER CODE END Header_StartTinyMLTask */
 void StartTinyMLTask(void *argument)
 {
-  /* USER CODE BEGIN StartTinyMLTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END StartTinyMLTask */
+    SensorData_t sensor;
+    ReportData_t report;
+
+    printf("TinyMLTask Started\r\n");
+
+    for (;;)
+    {
+        if (xQueueReceive(SensorQueue, &sensor, portMAX_DELAY) == pdPASS)
+        {
+            printf("TinyML Received\r\n");
+
+            report.sensor = sensor;
+
+            TinyML_RunInference(&sensor, &report.inference);
+
+            printf("Inference Done\r\n");
+
+            if (xQueueSend(InferenceQueue, &report, pdMS_TO_TICKS(100)) == pdPASS)
+            {
+                printf("Inference Sent\r\n");
+            }
+            else
+            {
+                printf("Inference Queue FULL\r\n");
+            }
+        }
+    }
 }
 
 /* USER CODE BEGIN Header_StartAlertTask */
@@ -527,13 +617,36 @@ void StartAlertTask(void *argument)
 /* USER CODE END Header_StartUARTTask */
 void StartUARTTask(void *argument)
 {
-  /* USER CODE BEGIN StartUARTTask */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END StartUARTTask */
+    ReportData_t report;
+    char msg[200];
+
+    printf("UARTTask Started\r\n");
+
+    for (;;)
+    {
+        if (xQueueReceive(InferenceQueue, &report, portMAX_DELAY) == pdPASS)
+        {
+            printf("UART Received Report\r\n");
+
+            sprintf(msg,
+                    "%.2f,%.2f,%u,%u,%.6f,%u\r\n",
+                    report.sensor.temperature,
+                    report.sensor.pressure,
+                    report.sensor.gas,
+                    report.sensor.vibration,
+                    report.inference.probability,
+                    report.inference.anomaly);
+
+            printf("%s", msg);
+
+            HAL_UART_Transmit(&huart1,
+                              (uint8_t *)msg,
+                              strlen(msg),
+                              HAL_MAX_DELAY);
+
+
+        }
+    }
 }
 
 /**

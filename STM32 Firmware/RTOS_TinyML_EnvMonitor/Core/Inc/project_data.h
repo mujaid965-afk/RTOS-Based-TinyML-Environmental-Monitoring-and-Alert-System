@@ -23,9 +23,10 @@ typedef struct
 
 typedef struct
 {
-	char reason[32];
-	uint8_t anomaly;
-}InferenceData_t;
+    char reason[32];
+    uint8_t anomaly;
+    float probability;
+} InferenceData_t;
 
 typedef struct
 {
